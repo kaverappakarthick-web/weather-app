@@ -3,7 +3,7 @@
  *
  * Data layers:
  *  - Countries:   world-atlas/countries-50m.json (npm, dynamic import)
- *  - India:       DataMeet india_states.geojson via jsDelivr CDN
+ *  - India:       /india-states.json (bundled in public/, Survey of India boundary)
  *  - World admin-1: Natural Earth 110m states/provinces via jsDelivr (lazy-loaded)
  *  - Cities:      Curated inline list
  *
@@ -25,8 +25,10 @@ const ALT_STATE = 1.8
 const ALT_CITY  = 0.9
 const INDIA_ID  = 356   // Natural Earth numeric ISO for India
 
-const INDIA_STATES_URL =
-  'https://cdn.jsdelivr.net/gh/datameet/maps@master/States/india_states.geojson'
+// Served from public/ — bundled with the app, no CDN dependency.
+// Generated from geohacker/india with J&K extended to lat ~37°N (Survey of India claim).
+// See scripts/prepare-india.js for how this file was produced.
+const INDIA_STATES_URL = '/india-states.json'
 const WORLD_STATES_URL =
   'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_1_states_provinces.geojson'
 
@@ -252,13 +254,11 @@ export default function GlobeView({ onLocationSelect, unit, searchFlyTo }) {
               id: `IN_${i}`,
               _indiaFeature: true,
             }))
-            console.log(
-              '[Globe] India states loaded. Sample properties:',
-              JSON.stringify(indiaStateFeatures[0]?.properties)
-            )
+          } else {
+            console.warn('[Globe] india-states.json returned', resp.status)
           }
-        } catch {
-          console.warn('[Globe] India states fetch failed, using Natural Earth India')
+        } catch (e) {
+          console.warn('[Globe] India states fetch failed:', e.message)
         }
 
         // Remove NE India polygon; replace with DataMeet state polygons
