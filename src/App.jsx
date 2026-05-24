@@ -3,6 +3,10 @@ import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { createAtmosphere, resolveThemeKey, THEMES } from './atmosphere.js'
 import WeatherIcon from './WeatherIcon.jsx'
 import TileDrawer from './TileDrawer.jsx'
+import AIBriefing from './AIBriefing.jsx'
+import AIChatDrawer from './AIChatDrawer.jsx'
+import AIPlanner from './AIPlanner.jsx'
+import { buildWeatherContext } from './ai.js'
 import './App.css'
 
 // Lazy-load the globe (Three.js is ~2MB — only load when needed)
@@ -184,6 +188,8 @@ export default function App() {
     JSON.parse(localStorage.getItem('recentSearches') || '[]'))
   const [favorites, setFavorites] = useState(() =>
     JSON.parse(localStorage.getItem('favorites') || '[]'))
+  const [chatOpen,    setChatOpen]    = useState(false)
+  const [plannerOpen, setPlannerOpen] = useState(false)
 
   const rawTemp = weather ? Math.round(weather.main.temp) : 0
   const displayRaw = unit === 'C' ? rawTemp : toF(rawTemp)
@@ -515,6 +521,11 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* AI Briefing */}
+                <AIBriefing
+                  weatherContext={buildWeatherContext(weather, hourly, forecast, airQuality, unit)}
+                />
+
                 {/* Hourly */}
                 {hourly.length > 0 && (
                   <div className="section-glass">
@@ -613,6 +624,37 @@ export default function App() {
           unit={unit}
           onClose={() => setActiveTile(null)}
         />
+      )}
+
+      {/* ── AI Chat Drawer ── */}
+      {view === 'detail' && weather && (
+        <>
+          <AIChatDrawer
+            weatherContext={buildWeatherContext(weather, hourly, forecast, airQuality, unit)}
+            open={chatOpen}
+            onClose={() => setChatOpen(false)}
+          />
+          <AIPlanner
+            weatherContext={buildWeatherContext(weather, hourly, forecast, airQuality, unit)}
+            open={plannerOpen}
+            onClose={() => setPlannerOpen(false)}
+          />
+          {/* Floating AI buttons */}
+          {!chatOpen && !plannerOpen && (
+            <div className="ai-fab-group" aria-label="AI features">
+              <button className="ai-fab ai-fab--plan"
+                onClick={() => setPlannerOpen(true)}
+                aria-label="Open activity planner">
+                📅
+              </button>
+              <button className="ai-fab ai-fab--chat"
+                onClick={() => setChatOpen(true)}
+                aria-label="Open AI chat assistant">
+                ✦ Ask AI
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   )
