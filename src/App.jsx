@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import './App.css'
 
-const API_KEY = import.meta.env.VITE_WEATHER_API_KEY
+const API_KEY = import.meta.env.VITE_WEATHER_API_KEY || '1de5a2ec29141f30436323f5aedf3848'
 const API_BASE = 'https://api.openweathermap.org/data/2.5'
 
 function getWeatherIcon(code, isNight = false) {
