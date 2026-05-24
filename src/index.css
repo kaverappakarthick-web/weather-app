@@ -1,0 +1,39 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0f0f1a;
+  --card: #1a1a2e;
+  --card2: #16213e;
+  --accent: #4f8ef7;
+  --accent2: #a78bfa;
+  --text: #e2e8f0;
+  --subtext: #94a3b8;
+  --border: #2d2d4e;
+}
+
+.light {
+  --bg: #f0f4ff;
+  --card: #ffffff;
+  --card2: #e8f0fe;
+  --accent: #3b82f6;
+  --accent2: #7c3aed;
+  --text: #1e293b;
+  --subtext: #64748b;
+  --border: #cbd5e1;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
