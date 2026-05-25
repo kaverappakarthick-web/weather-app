@@ -4,9 +4,9 @@
  * Underscore prefix = not treated as a route.
  */
 
-export const MODEL_FLASH = 'deepseek-v4-flash'
-export const MODEL_PRO   = 'deepseek-v4-pro'
-const DEEPSEEK_URL = 'https://api.deepseek.com/chat/completions'
+export const MODEL_FLASH = 'deepseek-ai/DeepSeek-V3-0324'
+export const MODEL_PRO   = 'deepseek-ai/DeepSeek-V3-0324'
+const DEEPSEEK_URL = 'https://router.huggingface.co/v1/chat/completions'
 
 // ── CORS headers ──────────────────────────────────────────────────────────────
 export const CORS = {
