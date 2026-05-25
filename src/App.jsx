@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
-import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from 'recharts'
+import { ComposedChart, Bar, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { createAtmosphere, resolveThemeKey, THEMES } from './atmosphere.js'
 import WeatherIcon from './WeatherIcon.jsx'
 import TileDrawer from './TileDrawer.jsx'
 import AIBriefing from './AIBriefing.jsx'
 import AIChatDrawer from './AIChatDrawer.jsx'
 import AIPlanner from './AIPlanner.jsx'
-import { buildWeatherContext } from './ai.js'
+import { buildWeatherContext, parseSearchIntent } from './ai.js'
 import './App.css'
 
 // Lazy-load the globe (Three.js is ~2MB — only load when needed)
@@ -31,6 +31,24 @@ function dayName(ts) {
   return new Date(ts * 1000).toLocaleDateString('en-US', { weekday:'short' })
 }
 function toF(c) { return Math.round(c * 9/5 + 32) }
+
+function uvLabel(uv) {
+  if (uv < 3) return 'Low'
+  if (uv < 6) return 'Moderate'
+  if (uv < 8) return 'High'
+  if (uv < 11) return 'Very High'
+  return 'Extreme'
+}
+function uvColor(uv) {
+  if (uv < 3) return '#34d399'
+  if (uv < 6) return '#fbbf24'
+  if (uv < 8) return '#f97316'
+  if (uv < 11) return '#ef4444'
+  return '#a855f7'
+}
+function isNLQuery(q) {
+  return q.includes(' ') && /\b(weather|rain|sunny|snow|hot|cold|warm|will|today|tomorrow|forecast|temperature|in|at|near|cloud|wind|humid)\b/i.test(q)
+}
 
 function useTweenedValue(target) {
   const [display, setDisplay] = useState(target)
@@ -188,6 +206,7 @@ export default function App() {
     JSON.parse(localStorage.getItem('recentSearches') || '[]'))
   const [favorites, setFavorites] = useState(() =>
     JSON.parse(localStorage.getItem('favorites') || '[]'))
+  const [uvIndex,     setUvIndex]     = useState(null)
   const [chatOpen,    setChatOpen]    = useState(false)
   const [plannerOpen, setPlannerOpen] = useState(false)
 
@@ -217,6 +236,7 @@ export default function App() {
   async function fetchWeather(query) {
     setLoading(true)
     setError('')
+    setUvIndex(null)
     try {
       const [wRes, fRes] = await Promise.all([
         fetch(`${API_BASE}/weather?${query}&appid=${API_KEY}&units=metric`),
@@ -266,6 +286,11 @@ export default function App() {
       const aqRes = await fetch(`${API_BASE}/air_pollution?lat=${lat}&lon=${lon}&appid=${API_KEY}`)
       if (aqRes.ok) setAirQuality((await aqRes.json()).list[0])
 
+      try {
+        const uvRes = await fetch(`${API_BASE}/uvi?lat=${lat}&lon=${lon}&appid=${API_KEY}`)
+        if (uvRes.ok) setUvIndex((await uvRes.json()).value)
+      } catch {}
+
       const name = wData.name
       setRecentSearches(prev => {
         const up = [name, ...prev.filter(c => c !== name)].slice(0, 5)
@@ -279,9 +304,21 @@ export default function App() {
     }
   }
 
-  function handleSearch() {
-    if (!city.trim()) return
-    fetchWeather(`q=${encodeURIComponent(city.trim())}`)
+  async function handleSearch() {
+    const q = city.trim()
+    if (!q) return
+    if (isNLQuery(q)) {
+      try {
+        const { intent } = await parseSearchIntent(q)
+        if (intent?.locations?.length > 0) {
+          const loc = intent.locations[0]
+          setCity(loc)
+          fetchWeather(`q=${encodeURIComponent(loc)}`)
+          return
+        }
+      } catch {}
+    }
+    fetchWeather(`q=${encodeURIComponent(q)}`)
   }
 
   function handleLocation() {
@@ -298,10 +335,21 @@ export default function App() {
   }
 
   // Search while on globe — fly globe then fetch
-  function handleSearchOnGlobe() {
-    if (!city.trim()) return
-    // First fly globe, then fetch
-    fetchWeather(`q=${encodeURIComponent(city.trim())}`)
+  async function handleSearchOnGlobe() {
+    const q = city.trim()
+    if (!q) return
+    if (isNLQuery(q)) {
+      try {
+        const { intent } = await parseSearchIntent(q)
+        if (intent?.locations?.length > 0) {
+          const loc = intent.locations[0]
+          setCity(loc)
+          fetchWeather(`q=${encodeURIComponent(loc)}`)
+          return
+        }
+      } catch {}
+    }
+    fetchWeather(`q=${encodeURIComponent(q)}`)
   }
 
   function toggleFav() {
@@ -531,8 +579,8 @@ export default function App() {
                   <div className="section-glass">
                     <div className="section-head">24 · Hour Forecast</div>
                     <div className="hourly-chart">
-                      <ResponsiveContainer width="100%" height={140}>
-                        <AreaChart data={hourly} margin={{top:16,right:8,left:8,bottom:0}}>
+                      <ResponsiveContainer width="100%" height={150}>
+                        <ComposedChart data={hourly} margin={{top:16,right:8,left:8,bottom:0}}>
                           <defs>
                             <linearGradient id="hg" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%" stopColor="#60a5fa" stopOpacity={0.3}/>
@@ -540,11 +588,14 @@ export default function App() {
                             </linearGradient>
                           </defs>
                           <XAxis dataKey="time" tick={{fill:'rgba(255,255,255,0.55)',fontSize:10}} axisLine={false} tickLine={false}/>
+                          <YAxis yAxisId="pop" hide domain={[0,100]}/>
+                          <YAxis yAxisId="temp" hide domain={['auto','auto']}/>
                           <Tooltip
                             contentStyle={{background:'rgba(15,15,30,0.85)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:10,color:'white',fontSize:12}}
-                            formatter={v=>[`${v}°${unit}`,'Temp']}/>
-                          <Area type="monotone" dataKey={unit==='C'?'temp':'tempF'} stroke="#60a5fa" strokeWidth={2} fill="url(#hg)" dot={{fill:'#60a5fa',r:3,strokeWidth:0}}/>
-                        </AreaChart>
+                            formatter={(v,n) => n==='pop' ? [`${v}%`,'Rain'] : [`${v}°${unit}`,'Temp']}/>
+                          <Bar yAxisId="pop" dataKey="pop" name="pop" fill="rgba(96,165,250,0.18)" radius={[2,2,0,0]}/>
+                          <Area yAxisId="temp" type="monotone" dataKey={unit==='C'?'temp':'tempF'} name="temp" stroke="#60a5fa" strokeWidth={2} fill="url(#hg)" dot={{fill:'#60a5fa',r:3,strokeWidth:0}}/>
+                        </ComposedChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
@@ -585,6 +636,13 @@ export default function App() {
                   <GlassTile label="Cloud Cover">
                     <ArcGauge value={weather.clouds.all} max={100} color="#94a3b8" label="Cloud cover" unit="%"/>
                   </GlassTile>
+
+                  {uvIndex != null && (
+                    <GlassTile label="UV Index">
+                      <div className="tile-big">{Math.round(uvIndex)}</div>
+                      <div className="tile-sub" style={{color: uvColor(uvIndex)}}>{uvLabel(uvIndex)}</div>
+                    </GlassTile>
+                  )}
 
                   {airQuality && (
                     <GlassTile label="Air Quality" className="tile-wide" tileKey="aqi" onExpand={setActiveTile}>

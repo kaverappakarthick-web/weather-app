@@ -142,6 +142,7 @@ Return a JSON array of ALL provided days, sorted best to worst:
   "temp_max": number,
   "temp_min": number,
   "condition": "brief weather description",
+  "condition_id": number (OpenWeatherMap code: 800=clear, 801=few clouds, 803=cloudy, 500=light rain, 501=moderate rain, 502=heavy rain, 600=light snow, 611=sleet, 200=thunderstorm, 721=haze, 741=fog),
   "precipitation_chance": number (0-100)
 }]
 Use ${unit === 'F' ? 'Fahrenheit (°F)' : 'Celsius (°C)'} for temperatures.
